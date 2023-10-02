@@ -1,9 +1,9 @@
 
 dataset:
-  name: wikidata5m
+  name: wikidata5m_v3
 
   # use original KGT5 without context
-  v1: False
+  v1: True
 
   # use deprecated input format. Necessary to properly evaluate old models.
   is_legacy: False
@@ -17,15 +17,15 @@ context:
   max_size: 100
   shuffle: True
 descriptions:
-  use: False
+  use: True
 train:
-  batch_size: 80
+  batch_size: 96
   max_epochs: 100
   drop_subject: 0.0
   num_workers: 4
   precision: 16
   accelerator: auto
-  devices: 4,6,7  # auto
+  devices: 2,3,4  # auto
   strategy: ddp_find_unused_parameters_false
   #strategy: ddp
 eval:
