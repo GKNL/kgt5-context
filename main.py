@@ -3,12 +3,13 @@ import hydra
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import RichProgressBar
 from custom_data import NbhoodDataModule
 from kgt5_model import KGT5_Model
 from omegaconf import DictConfig, OmegaConf, open_dict
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="config")
+@hydra.main(version_base=None, config_path="conf", config_name="config")  # config_name="config"
 def run(config: DictConfig) -> None:
     print(OmegaConf.to_yaml(config))
     hydra_cfg = hydra.core.hydra_config.HydraConfig.get()
@@ -40,7 +41,7 @@ def run(config: DictConfig) -> None:
         'default_root_dir': config.output_dir,
         'strategy': config.train.strategy,
         'precision': config.train.precision,
-        'callbacks': [checkpoint_monitor],
+        'callbacks': [checkpoint_monitor],  # RichProgressBar()
         'check_val_every_n_epoch': config.valid.every,
     }
     if config.wandb.use:

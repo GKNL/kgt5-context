@@ -279,11 +279,11 @@ class KGCV1Dataset(KGCDataset):
         is_reverse = triple[1] >= self.num_relations
         # Done: Source加上[Object],[Relation],[Subject] tokens
         if is_reverse:  # TODO: 反关系的relation token单独设计？ Is [Subject] token valid to be added here?
-            source = f"{self.head_pred_token} {self.subject_token} {self.ent_aliases[triple[0]]} | {self.relation_token} {self.rel_aliases[triple[1]-self.num_relations]} | {self.subject_token} | "
+            source = f"{self.head_pred_token} {self.subject_token} {self.ent_aliases[triple[0]]} | {self.relation_token} {self.rel_aliases[triple[1]-self.num_relations]} | {self.object_token} | "
             if self.is_legacy:  # TODO: To be redesigned.
                 source = f"|HEAD| {self.ent_aliases[triple[0]]}||| {self.rel_aliases[triple[1]-self.num_relations]}"
         else:
-            source = f"{self.tail_pred_token} {self.subject_token} {self.ent_aliases[triple[0]]} | {self.relation_token} {self.rel_aliases[triple[1]]} | {self.subject_token} | "
+            source = f"{self.tail_pred_token} {self.subject_token} {self.ent_aliases[triple[0]]} | {self.relation_token} {self.rel_aliases[triple[1]]} | {self.object_token} | "
             if self.is_legacy:  # TODO: To be redesigned.
                 source = f"|TAIL| {self.ent_aliases[triple[0]]}||| {self.rel_aliases[triple[1]]}"
         target = self.ent_aliases[triple[2]]

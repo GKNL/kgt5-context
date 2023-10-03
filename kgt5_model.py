@@ -2,6 +2,8 @@ import pytorch_lightning as pl
 from transformers import T5Config, T5ForConditionalGeneration, Adafactor
 import numpy as np
 import torch
+import torch.nn.functional as F
+from torch import nn
 from collections import defaultdict
 
 
@@ -19,6 +21,15 @@ class KGT5_Model(pl.LightningModule):
         self.max_length = self.config.eval.max_length
         self.tokenizer = data_module.tokenizer
         vocab_size = self.tokenizer.vocab_size
+        self.special_token_dict = {
+            'description': "<extra_id_96>",  # 32003
+            'tail_pre': "<extra_id_55>",  # 32044
+            'head_pre': "<extra_id_56>",  # 32043
+            'subject': "<extra_id_60>",  # 32039
+            'relation': "<extra_id_61>",  # 32038
+            'object': "<extra_id_62>",  # 32037
+        }
+        self.gama = 15.0
         if self.tokenizer.vocab_size == 32100:
             vocab_size = 32128 # TODO this is hack for default t5 tokenizer. don't know why this happens
 
@@ -33,8 +44,37 @@ class KGT5_Model(pl.LightningModule):
             print('Initialized model from pretrained weights (LM)')
 
     def training_step(self, batch, batch_idx):
-        outputs = self.model(**batch)
-        loss = outputs.loss
+        # TODO: 找出batch中Soft Token所在indices，计算额外的Triple loss
+        # description: <extra_id_96> 32003;  tail_pre: <extra_id_55> 32044;  head_pre: <extra_id_56> 32043
+        # [Subject] token <extra_id_60> 32039; [Relation] token <extra_id_61> 32038; [Object] token <extra_id_62> 32037
+        input_ids = batch['input_ids']  # [batch_size, seq_len]
+        attention_mask = batch['attention_mask']
+        labels = batch['labels']
+
+        # find number in input_ids which equals to special token
+
+        subject_idx = torch.where(input_ids == self.tokenizer.convert_tokens_to_ids(self.special_token_dict['subject']))
+        relation_idx = torch.where(input_ids == self.tokenizer.convert_tokens_to_ids(self.special_token_dict['relation']))
+        object_idx = torch.where(input_ids == self.tokenizer.convert_tokens_to_ids(self.special_token_dict['object']))
+
+        outputs = self.model(**batch)  # TODO: 输入从inputs_id改为inputs_embeds
+        # 取出model中encoder最后一层的hidden state
+        encoder_last_hidden_state = outputs.encoder_last_hidden_state  # [batch_size, seq_len, hidden_size]
+        # 找到subject, relation, object对应的hidden state
+        subject_hidden_state = encoder_last_hidden_state[subject_idx[0], subject_idx[1], :]  # [batch_size, hidden_size]
+        relation_hidden_state = encoder_last_hidden_state[relation_idx[0], relation_idx[1], :]  # [batch_size, hidden_size]
+        object_hidden_state = encoder_last_hidden_state[object_idx[0], object_idx[1], :]  # [batch_size, hidden_size]
+
+        BCE_loss = outputs.loss  # Tail Regression loss
+        triple_loss = self.TransE(subject_hidden_state, relation_hidden_state, object_hidden_state)  # Triple loss
+        reasoning_loss = -F.logsigmoid(triple_loss).mean()
+        reasoning_loss = reasoning_loss * 0.0005
+        loss = BCE_loss + reasoning_loss
+
+        self.log_dict({"BCE_loss": BCE_loss.detach(), "Triple_loss": reasoning_loss.detach()}, prog_bar=True)
+
+        # self.log("BCE_loss", BCE_loss.detach(), prog_bar=True)
+        # self.log("Triple_loss", reasoning_loss.detach(), prog_bar=True)
         self.log("loss", loss.detach())
         return loss
 
@@ -174,3 +214,52 @@ class KGT5_Model(pl.LightningModule):
 
     def test_epoch_end(self, ranks):
         return self.metric_aggregation(ranks)
+
+    def TransE(self, head, relation, tail):
+        score = (head + relation) - tail
+        score = self.gama - torch.norm(score, p=1, dim=-1)
+        return score
+
+    def RotatE(self, head, relation, tail):
+        head = head.unsqueeze(1)
+        relation = relation.unsqueeze(1)
+        tail = tail.unsqueeze(1)
+        pi = 3.14159265358979323846
+
+        re_head, im_head = torch.chunk(head, 2, dim=2)
+        re_tail, im_tail = torch.chunk(tail, 2, dim=2)
+
+        # Make phases of relations uniformly distributed in [-pi, pi]
+        rel1, rel2 = torch.chunk(relation, 2, dim=2)
+        relation = rel1 + rel2
+
+        phase_relation = relation / (384 / pi)
+
+        re_relation = torch.cos(phase_relation)
+        im_relation = torch.sin(phase_relation)
+
+        re_score = re_head * re_relation - im_head * im_relation
+        im_score = re_head * im_relation + im_head * re_relation
+        re_score = re_score - re_tail
+        im_score = im_score - im_tail
+
+        score = torch.stack([re_score, im_score], dim=0)
+        score = score.norm(dim=0)
+
+        score = self.gama - score.sum(dim=-1)
+        return score
+
+    def ComplEx(self, head, relation, tail):
+        head = head.unsqueeze(1)
+        relation = relation.unsqueeze(1)
+        tail = tail.unsqueeze(1)
+        re_head, im_head = torch.chunk(head, 2, dim=2)
+        re_relation, im_relation = torch.chunk(relation, 2, dim=2)
+        re_tail, im_tail = torch.chunk(tail, 2, dim=2)
+
+        re_score = re_head * re_relation - im_head * im_relation
+        im_score = re_head * im_relation + im_head * re_relation
+        score = re_score * re_tail + im_score * im_tail
+
+        score = score.sum(dim=2)
+        return score

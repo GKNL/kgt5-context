@@ -59,7 +59,7 @@ class NbhoodDataModule(pl.LightningDataModule):
         # for labels, set -100 for padding
         labels[labels == self.pad_token_id] = -100
         output = {
-            "input_ids": input_ids,
+            "input_ids": input_ids,  # [[32044, 16754, 18763,  ...,     0,     0,     0], [], ...]
             "attention_mask": attention_mask,
             "labels": labels,
         }
