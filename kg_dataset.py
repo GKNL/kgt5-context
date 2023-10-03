@@ -255,9 +255,9 @@ class KGCV1Dataset(KGCDataset):
         self.tail_pred_token = "<extra_id_55>"
         self.head_pred_token = "<extra_id_56>"
         # Triple Soft Token
-        self.object_token = "<extra_id_60>"  # [Object] token <extra_id_60>
+        self.subject_token = "<extra_id_60>"  # [Subject] token <extra_id_60>
         self.relation_token = "<extra_id_61>"  # [Relation] token <extra_id_61>
-        self.subject_token = "<extra_id_62>"  # [Subject] token <extra_id_62>
+        self.object_token = "<extra_id_62>"  # [Object] token <extra_id_62>
 
 
     def get_source_and_target(self, triple):
@@ -278,12 +278,12 @@ class KGCV1Dataset(KGCDataset):
     def get_source_and_target_with_Soft_token(self, triple):
         is_reverse = triple[1] >= self.num_relations
         # Done: Source加上[Object],[Relation],[Subject] tokens
-        if is_reverse:  # TODO: 反关系的relation token单独设计？
-            source = f"{self.head_pred_token} {self.object_token} {self.ent_aliases[triple[0]]} | {self.relation_token} {self.rel_aliases[triple[1]-self.num_relations]} | {self.relation_token} | "
+        if is_reverse:  # TODO: 反关系的relation token单独设计？ Is [Subject] token valid to be added here?
+            source = f"{self.head_pred_token} {self.subject_token} {self.ent_aliases[triple[0]]} | {self.relation_token} {self.rel_aliases[triple[1]-self.num_relations]} | {self.subject_token} | "
             if self.is_legacy:  # TODO: To be redesigned.
                 source = f"|HEAD| {self.ent_aliases[triple[0]]}||| {self.rel_aliases[triple[1]-self.num_relations]}"
         else:
-            source = f"{self.tail_pred_token} {self.object_token} {self.ent_aliases[triple[0]]} | {self.relation_token} {self.rel_aliases[triple[1]]} | {self.relation_token} | "
+            source = f"{self.tail_pred_token} {self.subject_token} {self.ent_aliases[triple[0]]} | {self.relation_token} {self.rel_aliases[triple[1]]} | {self.subject_token} | "
             if self.is_legacy:  # TODO: To be redesigned.
                 source = f"|TAIL| {self.ent_aliases[triple[0]]}||| {self.rel_aliases[triple[1]]}"
         target = self.ent_aliases[triple[2]]
@@ -294,7 +294,8 @@ class KGCV1Dataset(KGCDataset):
 
     def get(self, idx, split="train"):
         triple = self.get_split(split)[idx]  # Triple: [844819  66  89736]
-        source, target = self.get_source_and_target(triple)  # '<extra_id_55> Euryattus | parent taxon |  <extra_id_96> Euryattus is a genus of spiders in the family Salticidae (jumping spiders).Like Holcolaetis and Thiania bhamoensis, these spiders build a flat, densely woven egg sac that is not contiguous with '
+        # source, target = self.get_source_and_target(triple)  # '<extra_id_55> Euryattus | parent taxon |  <extra_id_96> Euryattus is a genus of spiders in the family Salticidae (jumping spiders).Like Holcolaetis and Thiania bhamoensis, these spiders build a flat, densely woven egg sac that is not contiguous with '
+        source, target = self.get_source_and_target_with_Soft_token(triple)
         is_tail_pred = triple[1] < self.num_relations
         output = {
             "input": source,
