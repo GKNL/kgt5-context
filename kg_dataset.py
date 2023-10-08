@@ -294,8 +294,8 @@ class KGCV1Dataset(KGCDataset):
 
     def get(self, idx, split="train"):
         triple = self.get_split(split)[idx]  # Triple: [844819  66  89736]
-        # source, target = self.get_source_and_target(triple)  # '<extra_id_55> Euryattus | parent taxon |  <extra_id_96> Euryattus is a genus of spiders in the family Salticidae (jumping spiders).Like Holcolaetis and Thiania bhamoensis, these spiders build a flat, densely woven egg sac that is not contiguous with '
-        source, target = self.get_source_and_target_with_Soft_token(triple)
+        source, target = self.get_source_and_target(triple)  # '<extra_id_55> Euryattus | parent taxon |  <extra_id_96> Euryattus is a genus of spiders in the family Salticidae (jumping spiders).Like Holcolaetis and Thiania bhamoensis, these spiders build a flat, densely woven egg sac that is not contiguous with '
+        # source, target = self.get_source_and_target_with_Soft_token(triple)
         is_tail_pred = triple[1] < self.num_relations
         output = {
             "input": source,

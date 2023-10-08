@@ -9,7 +9,7 @@ from kgt5_model import KGT5_Model
 from omegaconf import DictConfig, OmegaConf, open_dict
 
 
-@hydra.main(version_base=None, config_path="conf", config_name="config")  # config_name="config"
+@hydra.main(version_base=None, config_path="conf", config_name="config")  # config_name="config_debug"
 def run(config: DictConfig) -> None:
     print(OmegaConf.to_yaml(config))
     hydra_cfg = hydra.core.hydra_config.HydraConfig.get()

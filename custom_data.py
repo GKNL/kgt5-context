@@ -61,7 +61,7 @@ class NbhoodDataModule(pl.LightningDataModule):
         output = {
             "input_ids": input_ids,  # [[32044, 16754, 18763,  ...,     0,     0,     0], [], ...]
             "attention_mask": attention_mask,
-            "labels": labels,
+            "labels": labels,  # [batch_size, max_output_sequence_length]
         }
         return output
 
