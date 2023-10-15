@@ -1,9 +1,9 @@
 
 dataset:
-  name: wikidata5m
+  name: wikidata5m_v3
 
   # use original KGT5 without context
-  v1: False
+  v1: True
 
   # use deprecated input format. Necessary to properly evaluate old models.
   is_legacy: False
@@ -17,7 +17,7 @@ context:
   max_size: 100
   shuffle: True
 descriptions:
-  use: False
+  use: True
 train:
   batch_size: 80
   max_epochs: 100

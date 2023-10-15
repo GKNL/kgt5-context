@@ -32,7 +32,7 @@ class KGT5_Model(pl.LightningModule):
         }
         self.gama = 15.0
         self.tau = 0.8
-        # self.linear = nn.Linear()
+
         if self.tokenizer.vocab_size == 32100:
             vocab_size = 32128 # TODO this is hack for default t5 tokenizer. don't know why this happens
 
@@ -45,6 +45,12 @@ class KGT5_Model(pl.LightningModule):
         else:
             self.model = T5ForConditionalGeneration.from_pretrained(model_size)
             print('Initialized model from pretrained weights (LM)')
+
+        self.contrast_mapping = nn.Sequential(
+            nn.Linear(self.model.model_dim, self.model.model_dim, bias=True),
+            nn.ELU(),
+            nn.Linear(self.model.model_dim, self.model.model_dim, bias=True)
+        )
 
     def training_step(self, batch, batch_idx):
 
@@ -70,8 +76,8 @@ class KGT5_Model(pl.LightningModule):
 
     def configure_optimizers(self):
         print('Using default adafactor, lr=None')
-        # optimizer = Adafactor(self.parameters(), scale_parameter=True, relative_step=True, warmup_init=True, lr=None)  # TODO: Loss Nan ???
-        optimizer = Adafactor(self.parameters(), scale_parameter=False, relative_step=False, warmup_init=False, lr=4e-5)
+        optimizer = Adafactor(self.parameters(), scale_parameter=True, relative_step=True, warmup_init=True, lr=None)  # TODO: Loss Nan ???
+        # optimizer = Adafactor(self.parameters(), scale_parameter=False, relative_step=False, warmup_init=False, lr=4e-5)
         return optimizer
 
     def reasoning_loss(self, batch, outputs):
@@ -135,9 +141,12 @@ class KGT5_Model(pl.LightningModule):
         hr_pool = torch.mean(hr_embedding, dim=1)  # [batch_size, hidden_size]
         t_pool = torch.mean(t_embedding, dim=1)  # [batch_size, hidden_size]
 
+        hr = self.contrast_mapping(hr_pool)
+        t = self.contrast_mapping(t_pool)
+
         # Compute the InfoNCE loss between the tail and the head-relation pair
         loss = InfoNCE()
-        output = loss(t_pool, hr_pool)
+        output = loss(hr, t)
         return output
 
     def get_scores(self, ids, scores):

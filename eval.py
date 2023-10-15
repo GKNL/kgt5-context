@@ -1,7 +1,7 @@
 import torch
 import argparse
 import pytorch_lightning as pl
-from main_kgt5 import process_deprecated
+from main import process_deprecated
 from pytorch_lightning.loggers import WandbLogger
 from custom_data import NbhoodDataModule
 from kgt5_model import KGT5_Model
